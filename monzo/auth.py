@@ -11,8 +11,8 @@ from requests.auth import HTTPBasicAuth
 from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2 import TokenExpiredError
 
-from monzo.utils import save_token_to_file, load_token_from_file
-from monzo.errors import (
+from .utils import save_token_to_file, load_token_from_file
+from .errors import (
     BadRequestError,
     UnauthorizedError,
     ForbiddenError,
@@ -23,7 +23,7 @@ from monzo.errors import (
     InternalServerError,
     GatewayTimeoutError,
 )
-from monzo.const import (
+from .const import (
     CLIENT_ID,
     CLIENT_SECRET,
     ACCESS_TOKEN,
@@ -132,7 +132,7 @@ class MonzoOAuth2Client(object):
                 self.session.request(method, url, data=data, **kwargs)
             )
 
-        except (UnauthorizedError, TokenExpiredError) as e:
+        except (UnauthorizedError, TokenExpiredError):
             self.refresh_token()
             response = self.make_request(url, data=data, method=method, **kwargs)
 
@@ -167,8 +167,8 @@ class MonzoOAuth2Client(object):
 
         token = self.session.fetch_token(
             MonzoOAuth2Client._access_token_url,
-            username=self.client_id,
-            password=self.client_secret,
+            include_client_id=True,
+            client_secret=self.client_secret,
             code=code,
         )
 
