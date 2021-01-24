@@ -4,7 +4,7 @@ This module contains the class `Monzo` which represents a wrapper around
 HTTP calls to Monzo's API endpoints.
 """
 
-from monzo.auth import MonzoOAuth2Client
+from .auth import MonzoOAuth2Client
 from datetime import datetime
 from functools import partial
 
@@ -68,7 +68,7 @@ class Monzo(object):
         response = self.oauth_session.make_request(url)
         return response
 
-    def get_first_account(self):
+    def get_first_account(self, allow_closed=False):
         """Gets the first account for a user.
 
            :rtype: A Dictionary representation of the first account belonging to a user, if it exists.
@@ -77,7 +77,12 @@ class Monzo(object):
         accounts = self.get_accounts()
         if len(accounts["accounts"]) <= 0:
             raise LookupError("There are no accounts associated with this user.")
-        return accounts["accounts"][0]
+        if allow_closed:
+            return accounts["accounts"][0]
+        for account in accounts["accounts"]:
+            if not account["closed"]:
+                return account
+        raise LookupError("All accounts for this user is closed")
 
     def get_transactions(self, account_id, before=None, since=None, limit=None):
         """Get all transactions of a given account. (https://monzo.com/docs/#list-transactions)
@@ -220,7 +225,7 @@ class Monzo(object):
         response = self.oauth_session.make_request(url, data=data)
         return response
 
-    def create_feed_item(self, account_id, feed_type, url, params):
+    def create_feed_item(self, account_id, feed_type, target_url, params):
         """Creates a feed item. (https://monzo.com/docs/#create-feed-item)
 
             :param account_id: The unique identifier for the account to create the feed item for.
@@ -234,7 +239,7 @@ class Monzo(object):
         data = {
             "account_id": account_id,
             "type": feed_type,
-            "url": url,
+            "url": target_url,
             "params[title]": params.get("title"),
             "params[image_url]": params.get("image_url"),
             "params[body]": params.get("body"),
@@ -242,7 +247,7 @@ class Monzo(object):
             "params[body_color]": params.get("body_color"),
             "params[title_color]": params.get("title_color"),
         }
-        response = self.request.post(url, data=data)
+        response = self.oauth_session.make_request(url, data=data, method="POST")
         return response
 
     def get_pots(self):
